@@ -12,8 +12,10 @@
 import { writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 
-const PAPER = [0xf3, 0xed, 0xe1];
-const INK = [0x2a, 0x21, 0x1a];
+const PAPER = [0xf2, 0xe8, 0xd5];
+const BARK = [0x6b, 0x4a, 0x2a];
+const LEAF = [0x5a, 0x8a, 0x3c];
+const FIGURE = [0x5c, 0x33, 0x20];
 /** samples per axis inside each pixel — the only anti-aliasing there is */
 const SS = 4;
 
@@ -33,49 +35,59 @@ function inRoundRect(x, y, w, h, r) {
 const inPaper = (x, y) => inRoundRect(x, y, 32, 32, 7);
 
 /**
- * Must match app/icon.svg exactly. Every coordinate is EVEN: a favicon is drawn
- * at 16px, half this grid, so an odd edge lands mid-pixel and smears to grey
- * instead of rendering as a clean stroke.
+ * Back to front, exactly as app/icon.svg stacks them: a later layer paints over
+ * an earlier one. Keep the two files in step when editing either.
  */
-const inInk = (x, y) =>
-  inCircle(x, y, 8, 10, 5) || // the two heads
-  inCircle(x, y, 24, 10, 5) ||
-  inRect(x, y, 6, 14, 4, 6) || // risers
-  inRect(x, y, 22, 14, 4, 6) ||
-  inRect(x, y, 6, 16, 20, 4) || // bracket
-  inRect(x, y, 14, 20, 4, 6) || // trunk
-  inRect(x, y, 10, 26, 12, 2); // ground
+const LAYERS = [
+  { color: BARK, hit: (x, y) => inRect(x, y, 14, 12, 4, 8) }, // trunk
+  {
+    color: LEAF, // canopy
+    hit: (x, y) => inCircle(x, y, 16, 8, 6) || inCircle(x, y, 10.5, 11, 4.4) || inCircle(x, y, 21.5, 11, 4.4),
+  },
+  {
+    color: FIGURE, // two figures: a narrow head over a dome of shoulders
+    hit: (x, y) =>
+      inCircle(x, y, 9.6, 21.4, 2.4) ||
+      inCircle(x, y, 9.6, 26, 3.6) ||
+      inRect(x, y, 6, 26, 7.2, 3.5) ||
+      inCircle(x, y, 22.4, 21.4, 2.4) ||
+      inCircle(x, y, 22.4, 26, 3.6) ||
+      inRect(x, y, 18.8, 26, 7.2, 3.5),
+  },
+];
 
 /** RGBA pixels for the glyph at `size` px */
 function render(size) {
   const px = Buffer.alloc(size * size * 4);
-  const step = 32 / size / SS;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let paper = 0;
-      let ink = 0;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let hits = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
           const dx = ((x * SS + sx + 0.5) * 32) / (size * SS);
           const dy = ((y * SS + sy + 0.5) * 32) / (size * SS);
-          if (inPaper(dx, dy)) {
-            paper++;
-            if (inInk(dx, dy)) ink++;
-          }
+          if (!inPaper(dx, dy)) continue; // outside the tile: stays transparent
+          let c = PAPER;
+          for (const layer of LAYERS) if (layer.hit(dx, dy)) c = layer.color;
+          r += c[0];
+          g += c[1];
+          b += c[2];
+          hits++;
         }
       }
       const n = SS * SS;
-      const a = paper / n;
-      const i = ink / n;
       const o = (y * size + x) * 4;
-      if (a > 0) {
-        // ink over paper, both weighted by how much of the pixel they cover
-        for (let c = 0; c < 3; c++) px[o + c] = Math.round((INK[c] * i + PAPER[c] * (a - i)) / a);
+      if (hits > 0) {
+        px[o] = Math.round(r / hits);
+        px[o + 1] = Math.round(g / hits);
+        px[o + 2] = Math.round(b / hits);
       }
-      px[o + 3] = Math.round(a * 255);
+      px[o + 3] = Math.round((hits / n) * 255);
     }
   }
-  void step;
   return px;
 }
 
