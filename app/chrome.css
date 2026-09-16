@@ -675,8 +675,12 @@
   .register__name {
     font-size: 25px;
   }
+  /* The phone keeps its hint: it is the only place the touch gestures are
+     written down. Set tight so it costs one line of the chart, not three. */
   .hint {
-    display: none;
+    padding: 5px 12px;
+    font-size: 11px;
+    line-height: 1.3;
   }
   .branches__seg {
     min-width: 56px;

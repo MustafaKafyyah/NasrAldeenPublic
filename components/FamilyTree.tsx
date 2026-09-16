@@ -234,17 +234,33 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  /* the first paint fits when it can: a chart you must scroll to even see is
-     not a first impression — but never below 0.6, where names stop reading */
+  /* The first paint fits when it can: a chart you must scroll to even see is
+     not a first impression — but never below 0.6, where names stop reading.
+
+     Fitted once per layout, not once per page. `compact` is false until the
+     media query resolves after mount, so a phone's first pass still measures the
+     wide two-generation chart and shrinks to fit it; the fold just below then
+     replaces that chart with a much smaller one. Fitting only once leaves the
+     sheet at 0.6 on a screen it now fits comfortably. */
   const didFit = useRef(false);
   useEffect(() => {
     if (didFit.current) return;
     const el = scrollRef.current;
     if (!el || el.clientWidth === 0) return;
-    didFit.current = true;
-    if (width > el.clientWidth) fit(0.6);
+    // Deliberately deferred. Each change of width restarts this timer, so the
+    // fit lands on the layout that settles rather than the one that flashes
+    // first: a phone only learns it is a phone once the media query resolves
+    // after mount, and the fold above then rebuilds the chart smaller. Fitting
+    // immediately would measure the wide chart and leave the sheet shrunk to
+    // 0.6 on a screen the new chart fits comfortably.
+    const t = setTimeout(() => {
+      didFit.current = true;
+      if (width > el.clientWidth) fit(0.6);
+      else setZoom(1);
+    }, 60);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width]);
+  }, [width, compact]);
 
   /* A shared ?p= link opens on that person. The link is read here in the
      browser rather than on the server, because reading it on the server would
