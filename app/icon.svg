@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Nasr Aldeen family tree">
+  <!--
+    A tree with two heads, drawn in the chart's own language: iron-gall ink on
+    bone paper, and the same square bracket that joins a father to his children.
+
+    Every coordinate here is EVEN on purpose. A favicon is shown at 16px, i.e.
+    half this grid, so an odd edge would land mid-pixel and render as a soft
+    grey smear instead of a clean stroke. Keep it even when editing.
+  -->
+  <rect width="32" height="32" rx="7" fill="#F3EDE1" />
+  <g fill="#2A211A">
+    <!-- the two heads -->
+    <circle cx="8" cy="10" r="5" />
+    <circle cx="24" cy="10" r="5" />
+    <!-- risers down from each head into the bracket -->
+    <rect x="6" y="14" width="4" height="6" />
+    <rect x="22" y="14" width="4" height="6" />
+    <!-- the bracket that gathers them, the trunk, and the ground -->
+    <rect x="6" y="16" width="20" height="4" />
+    <rect x="14" y="20" width="4" height="6" />
+    <rect x="10" y="26" width="12" height="2" rx="1" />
+  </g>
+</svg>
