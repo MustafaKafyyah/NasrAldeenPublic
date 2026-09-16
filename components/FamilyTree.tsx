@@ -662,8 +662,17 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
         </p>
       )}
 
+      {/* the two views fold on different things: the tree on the issue chip
+          under a card, the list on the bead beside the name — and the list
+          shows no chip at all on a phone, so one wording cannot serve both */}
       <p className="hint" aria-hidden>
-        {compact ? d.hintMobile : d.hintDesktop}
+        {view === "scroll"
+          ? compact
+            ? d.hintMobileList
+            : d.hintDesktopList
+          : compact
+            ? d.hintMobile
+            : d.hintDesktop}
       </p>
     </main>
   );

@@ -55,7 +55,9 @@ const dict = {
     intro:
       "مشجّرة نسب آل نصر الدين، من الجدّ المؤسّس إلى الجيل السابع. المس أي اسم لترى نسبه وإخوته وأبناءه.",
     hintDesktop: "انقر على اسم ليضيء نسبه · انقر مرتين أو على الرقم لفتح الفرع أو طيّه · اسحب لتحريك الورقة · العجلة للتقريب والتبعيد · ٧ … ١ لطيّ الأجيال · / للبحث · f للملاءمة",
+    hintDesktopList: "انقر على اسم ليضيء نسبه · انقر مرتين أو على العلامة لفتح الفرع أو طيّه · اسحب لتحريك الورقة · العجلة للتقريب والتبعيد · ٧ … ١ لطيّ الأجيال · / للبحث · f للملاءمة",
     hintMobile: "المس اسماً ليضيء نسبه · المس الرقم لفتح الفرع",
+    hintMobileList: "المس اسماً ليضيء نسبه · المس العلامة لفتح الفرع",
     daughter: "بنت",
     son: "ابن",
     of: "من",
@@ -124,7 +126,9 @@ const dict = {
     intro:
       "The lineage of the Nasr Aldeen family, from the founding ancestor to the seventh generation. Tap any name to see their lineage, siblings and children.",
     hintDesktop: "Click a name to light its lineage · double-click or click the number to open or fold a branch · drag to pan · wheel to zoom · 1–7 folds generations · / to search · f to fit",
+    hintDesktopList: "Click a name to light its lineage · double-click or click the mark to open or fold a branch · drag to pan · wheel to zoom · 1–7 folds generations · / to search · f to fit",
     hintMobile: "Tap a name to light its lineage · tap the number to open a branch",
+    hintMobileList: "Tap a name to light its lineage · tap the mark to open a branch",
     daughter: "daughter",
     son: "son",
     of: "of",
