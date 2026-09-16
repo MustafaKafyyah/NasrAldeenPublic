@@ -1,0 +1,728 @@
+/* ————————————————————————————————————————————————————————————
+   chrome: masthead, register, generation heads, minimap, print
+   ———————————————————————————————————————————————————————————— */
+
+/* An app shell, not a document: the viewport is fixed and the sheet scrolls
+   inside it, which is what lets the generation heads stick vertically while
+   tracking horizontal scroll with no JS. */
+.page {
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+.masthead,
+.crumb,
+.hint {
+  flex: 0 0 auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dot,
+.register__dot {
+  padding: 0 0.45em;
+  color: var(--rule);
+}
+
+/* ————— masthead ————— */
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  position: relative;
+  z-index: 30;
+}
+.masthead__id {
+  min-width: 0;
+}
+.masthead__word {
+  margin: 0;
+  font-size: clamp(19px, 2.6vw, 27px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+:lang(en) .masthead__word {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: clamp(16px, 2.1vw, 22px);
+}
+.masthead__sub {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.masthead__tools {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper {
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stepper button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 160ms ease-out;
+}
+.stepper button + button {
+  border-inline-start: 1px solid var(--rule);
+}
+.stepper button:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+.stepper button:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 13px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 160ms ease-out,
+    border-color 160ms ease-out;
+}
+.chip:hover {
+  background: var(--paper-2);
+  border-color: var(--ink-soft);
+}
+.chip--solid {
+  background: var(--rubric);
+  border-color: var(--rubric);
+  color: var(--paper);
+}
+.chip--solid:hover {
+  background: #8a2418;
+  border-color: #8a2418;
+  color: var(--paper);
+}
+
+/* ————— search ————— */
+.search {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.search__input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.search__input::-webkit-search-cancel-button,
+.search__input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search__input::placeholder {
+  color: var(--ink-soft);
+}
+.search__input:focus {
+  outline: 1.5px solid var(--rubric);
+  outline-offset: 1px;
+  border-color: var(--rubric);
+}
+.search__results {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + 5px);
+  width: min(420px, 92vw);
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  max-height: 58vh;
+  overflow-y: auto;
+  z-index: 40;
+}
+.search__hit {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.search__hit--on,
+.search__hit:hover {
+  background: rgba(158, 42, 28, 0.09);
+}
+.search__name {
+  font-size: 16px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.search__chain {
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search__gen {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.search__empty {
+  padding: 10px 12px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* ————— breadcrumb ————— */
+.crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-size: 14px;
+}
+.crumb__link {
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+.crumb__link:hover {
+  color: var(--rubric);
+}
+.crumb__link::after {
+  content: "\203A";
+  padding-inline-start: 8px;
+  color: var(--rule);
+  display: inline-block;
+}
+[dir="rtl"] .crumb__link::after {
+  content: "\2039";
+}
+.crumb__here {
+  color: var(--ink);
+  font-size: 16px;
+}
+.crumb__count {
+  margin-inline-start: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.crumb__all {
+  margin-inline-start: auto;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 2px 10px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.crumb__all:hover {
+  border-color: var(--rubric);
+  color: var(--rubric);
+}
+
+/* ————— the four sons, drawn to scale ————— */
+.branches {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.branches__seg {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  min-width: 74px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 0;
+  border-inline-end: 1px solid var(--rule);
+  border-bottom: 2px solid transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background 160ms ease-out;
+}
+.branches__seg:last-child {
+  border-inline-end: 0;
+}
+.branches__seg:hover {
+  background: rgba(158, 42, 28, 0.06);
+}
+.branches__seg--on {
+  border-bottom-color: var(--rubric);
+}
+.branches__seg--on .branches__name {
+  color: var(--rubric);
+}
+.branches__name {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.branches__n {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————— body / scroller ————— */
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.scrollwrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.scroller {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  /* the sheet can be taken by the hand; cards keep their own pointer cursor */
+  cursor: grab;
+  /* the browser's own scroll anchoring fights the zoom-about-the-pointer maths
+     in FamilyTree: it re-adjusts scrollTop the moment the sheet changes size */
+  overflow-anchor: none;
+}
+.scroller--panning,
+.scroller--panning * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+.sheet {
+  position: relative;
+}
+.sheet__tree {
+  position: relative;
+}
+
+/* generation heads live inside the sheet, so they track horizontal scroll and
+   stick vertically with no JS at all */
+.gens {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+.gens__head {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 6px 6px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  color: var(--rubric);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gens__head:hover {
+  border-bottom-color: var(--rubric);
+}
+.gens__label {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.gens__count {
+  padding-inline-start: 2px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.gens__count {
+  padding-inline-start: 7px;
+}
+.gens__head--limit {
+  border-bottom-color: var(--rubric);
+}
+.gens__head--limit .gens__label::after {
+  content: "+";
+  padding-inline-start: 5px;
+  font-weight: 700;
+}
+
+.colophon {
+  margin: 26px 0 44px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ————— the plate: the whole family as one ink shape ————— */
+.minimap {
+  flex: 0 0 auto;
+  width: 62px;
+  height: 100%;
+  align-self: stretch;
+  margin: 0;
+  border-inline-start: 1px solid var(--rule);
+  background: var(--paper);
+  cursor: pointer;
+  touch-action: none;
+}
+.minimap__band {
+  fill: var(--ink);
+  opacity: 0.035;
+}
+.minimap__tick {
+  fill: var(--ink);
+  opacity: 0.5;
+}
+.minimap__tick--lit {
+  fill: var(--rubric);
+  opacity: 1;
+}
+.minimap__view {
+  fill: rgba(158, 42, 28, 0.07);
+  stroke: var(--rubric);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ————— register ————— */
+.register {
+  flex: 0 0 340px;
+  border-inline-start: 1px solid var(--rule);
+  background: var(--paper-2);
+  overflow: hidden;
+  display: flex;
+}
+.register__scroll {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px 40px;
+}
+.register__close {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 12px;
+  width: 34px;
+  height: 34px;
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.register__close:hover {
+  color: var(--rubric);
+}
+.register__name {
+  margin: 4px 0 6px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.register__nasab {
+  margin: 0 0 12px;
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.register__rel {
+  color: var(--ink-soft);
+  font-size: 0.85em;
+}
+.register__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+.register__link:hover {
+  color: var(--rubric);
+  text-decoration-color: var(--rubric);
+}
+.register__founder {
+  color: var(--rubric);
+}
+.register__meta,
+.register__fact {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.register__section {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.register__h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--rubric);
+  text-transform: uppercase;
+}
+:lang(ar) .register__h {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+}
+.register__count {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.register__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.register__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 3px 2px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.register__row:hover .register__rowname {
+  color: var(--rubric);
+}
+.register__rowname {
+  font-size: 16px;
+  color: var(--ink);
+}
+.register__rowcount {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.mark {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border: 1.25px solid var(--ink);
+  border-radius: 50%;
+}
+.mark--father {
+  background: var(--ink);
+}
+.mark--daughter {
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+.register__empty,
+.register__note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.register__note {
+  font-size: 12px;
+}
+.register__descline {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+.register__byGen {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.register__tick {
+  padding: 0 0.35em;
+  color: var(--rule);
+}
+.register__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.ribbon {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 9px 20px;
+  background: var(--paper-2);
+  border-top: 1px solid var(--rule);
+  color: var(--rubric);
+  font-size: 15px;
+  text-align: center;
+  z-index: 25;
+}
+
+.hint {
+  margin: 0;
+  padding: 7px 20px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ————— phone ————— */
+@media (max-width: 767px) {
+  .masthead {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .body {
+    flex-direction: column;
+  }
+  .register--sheet {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    height: 52svh;
+    flex: none;
+    border-inline-start: 0;
+    border-top: 1px solid var(--ink-soft);
+    z-index: 50;
+  }
+  .register__name {
+    font-size: 25px;
+  }
+  .hint {
+    display: none;
+  }
+  .branches__seg {
+    min-width: 56px;
+    padding: 6px 6px;
+    gap: 4px;
+  }
+  .branches__name {
+    font-size: 14px;
+  }
+}
+
+/* ————— print: the wall chart the family can hang ————— */
+@page {
+  size: A3 landscape;
+  margin: 8mm;
+}
+@media print {
+  .sheet {
+    zoom: var(--print-zoom, 1);
+  }
+  .masthead__tools,
+  .search,
+  .minimap,
+  .branches,
+  .register,
+  .hint,
+  .ribbon,
+  .crumb,
+  .gens__count {
+    display: none !important;
+  }
+  .page,
+  .scroller,
+  .body {
+    overflow: visible !important;
+    height: auto !important;
+    display: block;
+  }
+  .grain::after {
+    display: none;
+  }
+  .node--receded .node__name,
+  .node--receded .node__folio {
+    fill: var(--ink);
+  }
+  .link--receded {
+    opacity: 1;
+  }
+}

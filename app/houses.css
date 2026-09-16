@@ -1,0 +1,346 @@
+/* ————————————————————————————————————————————————————————————
+   البيوت — the house chart
+   ———————————————————————————————————————————————————————————— */
+
+.house-svg {
+  display: block;
+  color: var(--ink);
+}
+.house-svg text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* family blocks: the faint wash of a father's immediate family */
+.block {
+  transition: opacity 180ms ease-out;
+}
+
+/* brackets in the house pigment */
+.hlink {
+  stroke: var(--house);
+  stroke-width: 1.25;
+  opacity: 0.55;
+  transition: opacity 180ms ease-out;
+}
+.house-svg--lineage .hlink:not(.hlink--lit) {
+  opacity: 0.3;
+}
+.hlink--lit {
+  stroke: var(--rubric);
+  stroke-width: 2;
+  opacity: 1;
+  stroke-dasharray: 1;
+  animation: ink-travel 240ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--lit-delay, 0ms) backwards;
+}
+
+/* ————— cards ————— */
+.card {
+  cursor: pointer;
+  color: var(--house);
+}
+.card__paper {
+  fill: #f8f4ea;
+  stroke: var(--house);
+  stroke-width: 1;
+  stroke-opacity: 0.55;
+  transition:
+    stroke 160ms ease-out,
+    stroke-opacity 160ms ease-out,
+    fill 160ms ease-out;
+}
+.card:hover .card__paper {
+  stroke-opacity: 1;
+}
+.card__bar {
+  fill: var(--house);
+}
+.house-mark rect,
+.house-mark polygon,
+.house-mark circle,
+polygon.house-mark,
+rect.house-mark {
+  fill: var(--house);
+  stroke: var(--house);
+}
+.sex-mark {
+  stroke: var(--ink-soft);
+  color: var(--ink-soft);
+}
+.card__name {
+  fill: var(--ink);
+  font-family: var(--font-amiri), "Amiri", serif;
+  font-weight: 700;
+  pointer-events: none;
+  transition: fill 160ms ease-out;
+}
+:lang(en) .card__name {
+  font-family: var(--font-garamond), "EB Garamond", serif;
+  font-weight: 600;
+}
+.card__sub {
+  fill: var(--ink-soft);
+  font-family: var(--font-garamond), "EB Garamond", serif;
+  pointer-events: none;
+}
+:lang(en) .card__sub {
+  font-family: var(--font-amiri), "Amiri", serif;
+}
+.card__note {
+  fill: var(--rubric);
+}
+
+/* the founder */
+.card--head .card__paper {
+  stroke-opacity: 1;
+  stroke-width: 1.5;
+}
+.card--head .card__name {
+  font-family: var(--font-kufi), "Reem Kufi", sans-serif;
+}
+:lang(en) .card--head .card__name {
+  font-family: var(--font-garamond), "EB Garamond", serif;
+  font-weight: 700;
+}
+
+/* the issue chip */
+.chip-issue {
+  cursor: pointer;
+}
+.chip-issue__bg {
+  fill: #f8f4ea;
+  stroke: var(--house);
+  stroke-width: 1;
+  transition:
+    fill 160ms ease-out,
+    stroke 160ms ease-out;
+}
+.chip-issue__text {
+  fill: var(--house);
+  font-family: var(--font-garamond), "EB Garamond", serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: fill 160ms ease-out;
+}
+.card--folded .chip-issue__bg {
+  fill: var(--house);
+}
+.card--folded .chip-issue__text {
+  fill: var(--paper);
+}
+.chip-issue:hover .chip-issue__bg {
+  stroke-width: 1.75;
+}
+
+/* lit lineage: rubric, and nothing else fades */
+.card--lit .card__paper {
+  stroke: var(--rubric);
+  stroke-opacity: 1;
+  stroke-width: 1.75;
+  transition-delay: var(--lit-delay, 0ms);
+}
+.card--lit .card__name {
+  fill: var(--rubric);
+  transition-delay: var(--lit-delay, 0ms);
+}
+.card--selected .card__paper {
+  fill: #fdfaf3;
+  stroke-width: 2.25;
+}
+.card--focused .card__paper {
+  stroke-dasharray: 3 2;
+}
+
+/* ————— leaf stacks ————— */
+.stack {
+  color: var(--house);
+}
+.stack__paper {
+  fill: #f8f4ea;
+  stroke: var(--house);
+  stroke-width: 1;
+  stroke-opacity: 0.45;
+}
+.stack__row {
+  cursor: pointer;
+}
+.stack__hit {
+  fill: transparent;
+  transition: fill 140ms ease-out;
+}
+.stack__row:hover .stack__hit {
+  fill: rgba(42, 33, 26, 0.05);
+}
+.stack__name {
+  fill: var(--ink);
+  font-family: var(--font-amiri), "Amiri", serif;
+  pointer-events: none;
+  transition: fill 160ms ease-out;
+}
+:lang(en) .stack__name {
+  font-family: var(--font-garamond), "EB Garamond", serif;
+}
+.stack__row--lit .stack__name {
+  fill: var(--rubric);
+  font-weight: 700;
+}
+.stack__row--selected .stack__hit {
+  fill: rgba(158, 42, 28, 0.09);
+}
+.stack__row--focused .stack__hit {
+  stroke: var(--rubric);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
+
+/* ————— generation gutter (sticky on the reading edge) ————— */
+.gutter {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: visible;
+  z-index: 15;
+  pointer-events: none;
+}
+.gutter__label {
+  position: absolute;
+  inset-inline-start: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(243, 237, 225, 0.92);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--rubric);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.gutter__label:hover {
+  border-color: var(--rubric);
+}
+.gutter__label--frontier {
+  border-color: var(--rubric);
+}
+.gutter__more {
+  font-weight: 700;
+  padding-inline-start: 2px;
+}
+.gutter__count {
+  font-size: 11px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————— view toggle ————— */
+.views {
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.views button {
+  padding: 5px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.views button + button {
+  border-inline-start: 1px solid var(--rule);
+}
+.views button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ————— the four houses in the branch bar ————— */
+.branches__seg {
+  --house: var(--ink);
+  border-top: 3px solid var(--house);
+}
+.branches__seg--on .branches__name {
+  color: var(--house);
+}
+.branches__mark {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--house);
+  align-self: center;
+}
+.branches__mark .house-mark,
+.branches__mark .house-mark rect,
+.branches__mark .house-mark polygon,
+.branches__mark .house-mark circle,
+.branches__mark polygon.house-mark,
+.branches__mark rect.house-mark {
+  fill: var(--house);
+  stroke: var(--house);
+}
+
+/* ————— register: house line + details ————— */
+.register__house {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--house, var(--ink));
+}
+.register__house svg {
+  width: 12px;
+  height: 12px;
+}
+.register__title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.register__portrait {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  margin-bottom: 8px;
+}
+.register__note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.register__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  font-size: 14px;
+}
+.register__facts dt {
+  color: var(--ink-soft);
+}
+.register__facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hlink--lit {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+@media print {
+  .gutter,
+  .views {
+    display: none !important;
+  }
+}

@@ -1,0 +1,275 @@
+@import "tailwindcss";
+@import "./chrome.css";
+@import "./houses.css";
+
+/* ————— آل نصر الدين — manuscript tokens ————— */
+:root {
+  --paper: #f3ede1; /* bone paper, never white */
+  --paper-2: #e8e0cf; /* margin / second ground: panel, sheet, cartouches */
+  --ink: #2a211a; /* iron-gall ink — 13.53:1 on paper, 12.02:1 on paper-2 */
+  --ink-soft: rgba(42, 33, 26, 0.72); /* secondary TEXT — 5.7:1 on paper, 5.1:1 on paper-2 (AA) */
+  --ink-faint: rgba(42, 33, 26, 0.66); /* receded rows in lineage mode — 4.8:1 on paper (AA) */
+  --rubric: #9e2a1c; /* manuscript red — 6.43:1 on paper, 5.71:1 on paper-2 */
+  --rule: #c9bda6; /* hairlines ONLY (1.59:1) — never text */
+  --ruling: rgba(42, 33, 26, 0.055); /* mistara ruling lines */
+  --focus: var(--rubric);
+
+  /* Ratios above are recomputed by scripts/contrast-audit.ts — re-run it
+     whenever a ground or ink token changes; never carry a number forward. */
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rubric: var(--rubric);
+  --color-rule: var(--rule);
+  --font-kufi: var(--font-kufi);
+  --font-amiri: var(--font-amiri);
+  --font-garamond: var(--font-garamond);
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-amiri), "Amiri", "Scheherazade New", serif;
+  overflow-x: clip;
+}
+
+:lang(en) body {
+  font-family: var(--font-garamond), "EB Garamond", Georgia, serif;
+}
+
+::selection {
+  background: var(--rubric);
+  color: var(--paper);
+}
+
+/* display faces */
+.font-display {
+  font-family: var(--font-kufi), "Reem Kufi", sans-serif;
+}
+:lang(en) .font-display {
+  font-family: var(--font-garamond), "EB Garamond", serif;
+}
+.font-text {
+  font-family: var(--font-amiri), "Amiri", serif;
+}
+:lang(en) .font-text {
+  font-family: var(--font-garamond), "EB Garamond", serif;
+}
+
+/* numerals: Eastern Arabic in Arabic, old-style in English */
+:lang(en) .nums {
+  font-variant-numeric: oldstyle-nums tabular-nums;
+}
+.nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————— film grain over everything (desktop only) ————— */
+@media (min-width: 768px) {
+  .grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: multiply;
+  }
+}
+
+/* ————— focus: rubric ring, two-tone so it survives every ground ————— */
+:focus-visible {
+  outline: 1.5px solid var(--rubric);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* SVG text should never be selectable while dragging the sheet */
+.tree-svg text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ————————————————————————————————————————————————————————————
+   التشجير — the scroll
+   ———————————————————————————————————————————————————————————— */
+
+.tree-svg {
+  display: block;
+  touch-action: auto; /* the scroll is a document: native scroll and pinch */
+  color: var(--ink);
+}
+
+.ruling line {
+  stroke: var(--ruling);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.columns line {
+  stroke: var(--rule);
+  stroke-width: 1;
+  opacity: 0.45;
+  shape-rendering: crispEdges;
+}
+
+/* brackets */
+.link {
+  stroke: var(--rule);
+  stroke-width: 1;
+  transition: opacity 180ms ease-out;
+}
+.link--receded {
+  opacity: 0.4;
+}
+.link--lit {
+  stroke: var(--rubric);
+  stroke-width: 1.5;
+  opacity: 1;
+  stroke-dasharray: 1;
+  animation: ink-travel 240ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--lit-delay, 0ms) backwards;
+}
+@keyframes ink-travel {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* names sit on the ruling; the paper-coloured stroke cuts a clean window
+   through any rule or bracket that passes behind them */
+.node__name {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 3.5px;
+  paint-order: stroke fill;
+  transition:
+    fill 160ms ease-out,
+    opacity 180ms ease-out;
+}
+.node__bead {
+  stroke: var(--ink);
+  transition:
+    stroke 160ms ease-out,
+    fill 160ms ease-out;
+}
+.node__folio {
+  fill: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+}
+.node__ring {
+  stroke: var(--ink-soft);
+}
+.node {
+  cursor: pointer;
+  color: var(--ink);
+}
+.node__toggle {
+  cursor: pointer;
+}
+
+/* Receding NEVER touches a name: every one of the 291 stays at full ink and
+   full AA contrast. Attention is carried by the rubric chain — colour, weight
+   and a heavier rule — not by making the rest of the family hard to read. */
+.node--receded .node__folio,
+.node--receded .node__leader {
+  opacity: 0.45;
+}
+.node--receded .node__bead {
+  opacity: 0.5;
+}
+
+/* index leader: name … line-size, the way a printed index points at a page */
+.node__leader {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+}
+
+/* the head of the scroll: the founder wears a seal, not a box */
+.node__seal {
+  stroke: var(--rubric);
+  opacity: 0.7;
+}
+.node--head .node__name {
+  font-family: var(--font-kufi), sans-serif;
+  font-weight: 700;
+}
+:lang(en) .node--head .node__name {
+  font-family: var(--font-garamond), serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* the lit lineage */
+.node--lit .node__name {
+  fill: var(--rubric);
+  font-weight: 700;
+  transition-delay: var(--lit-delay, 0ms);
+}
+.node--lit .node__bead {
+  stroke: var(--rubric);
+  color: var(--rubric);
+  transition-delay: var(--lit-delay, 0ms);
+}
+.node--lit .node__folio {
+  fill: var(--rubric);
+  transition-delay: var(--lit-delay, 0ms);
+}
+.node--lit .node__leader {
+  stroke: var(--rubric);
+  opacity: 0.6;
+}
+
+.node:hover .node__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+}
+.node--focused .node__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rubric);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link--lit {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  .node__name,
+  .node__bead,
+  .node__folio {
+    transition: none;
+  }
+}
