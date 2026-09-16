@@ -1,12 +1,4 @@
-# آل نصر الدين — the public site
 
-The published build: the family tree with **no editing features**. This is the
-folder that becomes the live website.
-
-It is a **static export** — `next build` writes plain HTML, CSS and JS into
-`out/`. There is no server, no database and no API: nothing on the live site
-can change the data. To publish new names, edit them in `NasrAlDeen-editor`,
-copy its `data/people.json` here, and rebuild.
 
 ## Deploying to Cloudflare Pages
 
