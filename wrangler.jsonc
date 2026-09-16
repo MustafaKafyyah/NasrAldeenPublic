@@ -1,0 +1,19 @@
+{
+  // This site is a STATIC EXPORT: `next build` writes plain files into out/,
+  // and this Worker does nothing but serve them.
+  //
+  // The file has to exist. Without it `wrangler deploy` inspects the project,
+  // sees Next.js, assumes a server-rendered app and installs the OpenNext
+  // adapter — which then fails looking for a server build that a static export
+  // never produces. Declaring the assets here stops that guesswork.
+  "name": "nasraldeenpublic",
+  "compatibility_date": "2026-09-15",
+  "assets": {
+    "directory": "./out",
+    // serve out/404.html for unknown paths; out/_redirects still sends / to /ar
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
