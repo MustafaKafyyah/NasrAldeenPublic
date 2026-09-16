@@ -205,7 +205,13 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     const el = scrollRef.current;
     if (!el) return;
     const avail = el.clientWidth - 8;
-    setZoom(Math.max(floor, Math.min(1, avail / width)));
+    // A phone is allowed to scale UP to fill the glass. The list view is often
+    // far narrower than the screen — a register of five names is 244px of a
+    // 375px phone — and leaving it at 1:1 strands a third of the width empty.
+    // A desktop never grows past 1:1: there the sheet is meant to read as paper
+    // at its natural size.
+    const ceiling = compact ? 2 : 1;
+    setZoom(Math.max(floor, Math.min(ceiling, avail / width)));
   }
 
   /* The wheel takes the sheet in and out about the pointer — the chart is a
@@ -255,8 +261,14 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     // 0.6 on a screen the new chart fits comfortably.
     const t = setTimeout(() => {
       didFit.current = true;
-      if (width > el.clientWidth) fit(0.6);
-      else setZoom(1);
+      // Always through fit(): it clamps in both directions, so a sheet wider
+      // than the glass shrinks to it and a narrow one grows to fill it.
+      //
+      // A phone is allowed below the 0.6 floor. English names are wide enough
+      // that the chart needs about 0.51 to fit a 375px screen, and stopping at
+      // 0.6 leaves the founder card clipped off the edge — worse to read than
+      // slightly smaller type.
+      fit(compact ? 0.45 : 0.6);
     }, 60);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -447,7 +459,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
             <button
               onClick={() => {
                 setView("houses");
-                setZoom(1);
+                didFit.current = false; // the new view has its own width: fit it
               }}
               aria-pressed={view === "houses"}
             >
@@ -456,7 +468,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
             <button
               onClick={() => {
                 setView("scroll");
-                setZoom(1);
+                didFit.current = false; // the new view has its own width: fit it
               }}
               aria-pressed={view === "scroll"}
             >
