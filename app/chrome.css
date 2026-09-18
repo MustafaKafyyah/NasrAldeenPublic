@@ -740,6 +740,24 @@
 }
 .welcome__names {
   margin-top: 0;
+  padding: 0;
+  list-style: none;
+}
+.welcome__names li {
+  padding-inline-start: 1em;
+  text-indent: -1em; /* a wrapped name keeps its second line under its first letter */
+}
+.welcome__names li::before {
+  content: "\2022";
+  display: inline-block;
+  width: 1em;
+  color: var(--rule);
+  text-indent: 0;
+}
+.welcome__for {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--ink-soft);
 }
 .welcome__actions {
   display: flex;

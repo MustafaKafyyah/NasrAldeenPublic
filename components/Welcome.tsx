@@ -60,10 +60,19 @@ export function Welcome({ lang, onClose }: { lang: Lang; onClose: () => void }) 
         </p>
 
         <h3 className="welcome__h font-display">{d.welcomeThanksTitle}</h3>
-        <p className="welcome__names font-text">{d.welcomeThanks}</p>
+        <ul className="welcome__names font-text">
+          {d.welcomeThanksNames.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+        <p className="welcome__for font-text">{d.welcomeThanksFor}</p>
 
         <h3 className="welcome__h font-display">{d.welcomeBuiltTitle}</h3>
-        <p className="welcome__names font-text">{d.welcomeBuilt}</p>
+        <ul className="welcome__names font-text">
+          {d.welcomeBuiltNames.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
 
         <div className="welcome__actions">
           <button ref={startRef} className="chip chip--solid welcome__start" onClick={onClose}>
