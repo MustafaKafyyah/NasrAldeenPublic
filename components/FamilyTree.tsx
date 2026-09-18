@@ -20,8 +20,6 @@ import { num, t } from "@/lib/i18n";
 
 const EMPTY = new Set<string>();
 type View = "houses" | "scroll";
-/** localStorage key: the welcome card has been closed in this browser */
-const WELCOME_SEEN = "nasraldeen-welcome-seen";
 
 /** how far the sheet may be taken in and out by the wheel */
 const MIN_ZOOM = 0.25;
@@ -86,28 +84,9 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     setFocusId(null);
   }, []);
 
-  /* The welcome card: up on the first visit, remembered in this browser once
-     closed, and back on demand from the masthead. Read after mount — the page
-     is prerendered without it, and the browser is the only place that knows. */
-  const [welcome, setWelcome] = useState(false);
-  useEffect(() => {
-    let seen = false;
-    try {
-      seen = window.localStorage.getItem(WELCOME_SEEN) === "1";
-    } catch {
-      /* storage blocked: the card simply shows */
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!seen) setWelcome(true);
-  }, []);
-  const closeWelcome = useCallback(() => {
-    setWelcome(false);
-    try {
-      window.localStorage.setItem(WELCOME_SEEN, "1");
-    } catch {
-      /* nothing to remember it in; it will show again next time */
-    }
-  }, []);
+  /* The welcome card: up on every load, and back on demand from the masthead */
+  const [welcome, setWelcome] = useState(true);
+  const closeWelcome = useCallback(() => setWelcome(false), []);
 
   /* the mouse takes the sheet directly: drag to pan in both axes */
   useDragPan(scrollRef);
@@ -313,10 +292,16 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     aimAt(id);
   }
 
-  /** the phone's list view: a tap on a name opens its record AND its next column */
+  /** the phone's list view: a tap on a name opens its record AND its next
+      column; a tap on the name already open closes that column again */
   function selectAndOpen(id: string) {
+    const hasIssue = person(id).children.length > 0;
+    if (hasIssue && selectedId === id && expanded.has(id)) {
+      toggleCollapse(id);
+      return;
+    }
     select(id);
-    if (person(id).children.length && !expanded.has(id)) {
+    if (hasIssue && !expanded.has(id)) {
       setExpanded((cur) => {
         const next = new Set(cur);
         next.add(id);
