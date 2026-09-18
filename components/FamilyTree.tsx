@@ -11,7 +11,7 @@ import { BranchBar } from "./BranchBar";
 import { GenGutter } from "./GenGutter";
 import { Welcome } from "./Welcome";
 import { useDragPan, useMediaQuery, usePinchZoom, useReducedMotion } from "./hooks";
-import { SHEET_HALF } from "./Register";
+import { SHEET_REST } from "./Register";
 import { scrollLayout, pathToRoot, FOUNDER_ID } from "@/lib/layout";
 import { houseLayout } from "@/lib/houseLayout";
 import { geometry, houseGeometry, type SizeStep } from "@/lib/geometry";
@@ -154,7 +154,7 @@ export function FamilyTree({ lang }: { lang: Lang }) {
   const layTail = () => {
     const tail = tailRef.current;
     if (!tail) return;
-    const base = sheetOpen.current ? window.innerHeight * SHEET_HALF : 0;
+    const base = sheetOpen.current ? window.innerHeight * SHEET_REST : 0;
     tail.style.height = `${Math.max(base, zoomSlack.current)}px`;
   };
   useLayoutEffect(() => {
@@ -311,6 +311,18 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     setFocusId(id);
     setPreviewId(null);
     aimAt(id);
+  }
+
+  /** the phone's list view: a tap on a name opens its record AND its next column */
+  function selectAndOpen(id: string) {
+    select(id);
+    if (person(id).children.length && !expanded.has(id)) {
+      setExpanded((cur) => {
+        const next = new Set(cur);
+        next.add(id);
+        return next;
+      });
+    }
   }
 
   function toggleCollapse(id: string) {
@@ -564,7 +576,7 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     // that, not into the middle of the element
     const visibleH =
       compact && selectedId
-        ? Math.max(120, window.innerHeight * (1 - SHEET_HALF) - el.getBoundingClientRect().top)
+        ? Math.max(120, window.innerHeight * (1 - SHEET_REST) - el.getBoundingClientRect().top)
         : el.clientHeight;
     // frame the WHOLE lineage when it fits: seeing the chain from the founder
     // down to the person is the point, not seeing the person alone
@@ -822,8 +834,10 @@ export function FamilyTree({ lang }: { lang: Lang }) {
                       selectedId={shownId}
                       focusId={focusId}
                       subtree={subtree}
-                      onSelect={select}
-                      onToggleCollapse={toggleCollapse}
+                      onSelect={compact ? selectAndOpen : select}
+                      /* on a phone the bead does what the name does: a finger
+                         near a short name lands on the bead as often as not */
+                      onToggleCollapse={compact ? selectAndOpen : toggleCollapse}
                       width={width}
                       height={height}
                       reduced={reduced}

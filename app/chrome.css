@@ -811,7 +811,7 @@
   transition: bottom 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .page--sheet .fabs {
-  bottom: calc(50dvh + 10px);
+  bottom: calc(100dvh / 3 + 10px);
 }
 .fabs button {
   width: 44px;
@@ -1018,14 +1018,14 @@
     cursor: default;
   }
 
-  /* the register as a bottom sheet: half the glass at rest, all but a strip
-     of it when pulled up, dismissed when pulled past the half mark. The two
-     resting heights are mirrored in Register.tsx (SHEET_HALF, the 48px gap). */
+  /* the register as a bottom sheet: a third of the glass at rest, all but a strip
+     of it when pulled up, dismissed when pulled past half of that. The two
+     resting heights are mirrored in Register.tsx (SHEET_REST, the 48px gap). */
   .register--sheet {
     position: fixed;
     inset-inline: 0;
     bottom: 0;
-    height: 50dvh;
+    height: calc(100dvh / 3);
     max-height: calc(100dvh - 48px);
     flex: none;
     flex-direction: column;

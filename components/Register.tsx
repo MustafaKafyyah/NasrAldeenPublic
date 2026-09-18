@@ -15,17 +15,17 @@ import { HouseMark } from "./HouseTree";
 
 /* ————— the phone sheet ————— */
 
-/** where the sheet rests: half the glass, or all of it but a strip of the chart */
-type Snap = "half" | "full";
+/** where the sheet rests: a third of the glass, or all of it but a strip of the chart */
+type Snap = "rest" | "full";
 /** must agree with `.register--sheet` / `.register--full` in chrome.css */
-export const SHEET_HALF = 0.5;
+export const SHEET_REST = 1 / 3;
 const SHEET_FULL_GAP = 48;
 /** px/ms above which a release counts as a fling, whatever the position */
 const FLING = 0.45;
 
 function sheetHeights() {
   const vh = window.innerHeight;
-  return { half: vh * SHEET_HALF, full: vh - SHEET_FULL_GAP };
+  return { rest: vh * SHEET_REST, full: vh - SHEET_FULL_GAP };
 }
 
 /** السجل — the register entry for one person. */
@@ -51,13 +51,13 @@ export function Register({
   const [copied, setCopied] = useState<null | "nasab" | "link">(null);
   const byDepth = useMemo(() => descendantsByDepth(id), [id]);
 
-  /* On a phone the register is a bottom sheet: it opens on half the glass so
+  /* On a phone the register is a bottom sheet: it opens on a third of the glass so
      the lit lineage stays in view above it, the handle pulls it up to read a
-     long list, and a pull down past the half mark dismisses it. The state
+     long list, and a pull down past half of that dismisses it. The state
      lives here rather than in FamilyTree so it survives moving from person to
-     person, and picking a name inside the sheet drops it back to half: the
+     person, and picking a name inside the sheet drops it back to a third: the
      point of picking is to see that person on the chart. */
-  const [snap, setSnap] = useState<Snap>("half");
+  const [snap, setSnap] = useState<Snap>("rest");
   /** live height while a finger holds the sheet, else null */
   const [dragH, setDragH] = useState<number | null>(null);
   const asideRef = useRef<HTMLElement>(null);
@@ -65,7 +65,7 @@ export function Register({
   const drag = useRef<{ y0: number; h0: number; y: number; t: number; v: number } | null>(null);
 
   const pick = (pid: string) => {
-    if (compact) setSnap("half");
+    if (compact) setSnap("rest");
     onSelect(pid);
   };
 
@@ -91,11 +91,11 @@ export function Register({
     drag.current = null;
     setDragH(null);
     if (!g) return;
-    const { half, full } = sheetHeights();
+    const { rest, full } = sheetHeights();
     const h = Math.max(0, Math.min(full, g.h0 - (g.y - g.y0)));
     // a flick goes one stop in its direction; a slow release settles nearest
     if (g.v > FLING) {
-      if (snap === "full" && h > half * 0.6) setSnap("half");
+      if (snap === "full" && h > rest * 0.6) setSnap("rest");
       else onClose();
       return;
     }
@@ -103,8 +103,8 @@ export function Register({
       setSnap("full");
       return;
     }
-    if (h < half * 0.5) onClose();
-    else setSnap(Math.abs(h - half) <= Math.abs(h - full) ? "half" : "full");
+    if (h < rest * 0.5) onClose();
+    else setSnap(Math.abs(h - rest) <= Math.abs(h - full) ? "rest" : "full");
   }
 
   /* the handle: pointer events, since it takes mouse and finger alike */
@@ -123,7 +123,7 @@ export function Register({
     if (Math.abs(e.clientY - g.y0) < 4) {
       drag.current = null;
       setDragH(null);
-      setSnap((s) => (s === "half" ? "full" : "half"));
+      setSnap((s) => (s === "rest" ? "full" : "rest"));
       return;
     }
     dragEnd();
