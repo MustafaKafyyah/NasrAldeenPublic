@@ -112,7 +112,8 @@ export function geometry(lang: Lang, step: SizeStep, compact: boolean): Geometry
     marginLead: compact ? 26 : 52,
     marginTrail: compact ? 16 : 52,
     headerH: compact ? 34 : 40,
-    hitH: compact ? 42 : Math.max(24, rowPitch),
+    // a finger needs 44px (WCAG 2.5.8 / Apple HIG); a pointer needs the row
+    hitH: compact ? 44 : Math.max(24, rowPitch),
   };
 }
 

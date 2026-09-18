@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Scroll } from "./Scroll";
 import { HouseTree } from "./HouseTree";
@@ -9,7 +9,8 @@ import { SearchField } from "./SearchField";
 import { Minimap } from "./Minimap";
 import { BranchBar } from "./BranchBar";
 import { GenGutter } from "./GenGutter";
-import { useDragPan, useMediaQuery, useReducedMotion } from "./hooks";
+import { useDragPan, useMediaQuery, usePinchZoom, useReducedMotion } from "./hooks";
+import { SHEET_HALF } from "./Register";
 import { scrollLayout, pathToRoot, FOUNDER_ID } from "@/lib/layout";
 import { houseLayout } from "@/lib/houseLayout";
 import { geometry, houseGeometry, type SizeStep } from "@/lib/geometry";
@@ -38,7 +39,16 @@ function fathersAbove(root: Person, depth: number): Set<string> {
   return out;
 }
 
-export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPersonId: string | null }) {
+/** what a branch shows when it is opened: the way down to it, itself, and its sons who are fathers */
+function branchOpening(id: string): Set<string> {
+  const p = person(id);
+  const next = new Set<string>(p.ancestors);
+  next.add(id);
+  for (const c of p.children) if (person(c).children.length) next.add(c);
+  return next;
+}
+
+export function FamilyTree({ lang }: { lang: Lang }) {
   const d = t(lang);
   const rtl = lang === "ar";
   const compact = useMediaQuery("(max-width: 767px)");
@@ -48,20 +58,30 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
   const [rootId, setRootId] = useState(FOUNDER_ID);
   /** fathers whose children are on the sheet. The chart opens on the founder,
       his sons and their children: the shape of the family in one screen. */
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => {
-    const base = fathersAbove(family.root, 2);
-    if (initialPersonId) for (const a of person(initialPersonId).ancestors) base.add(a);
-    return base;
-  });
-  const [selectedId, setSelectedId] = useState<string | null>(initialPersonId);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => fathersAbove(family.root, 2));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [step, setStep] = useState<SizeStep>(1);
   /** CSS zoom on the sheet: 1 = natural size; "fit" shrinks the chart to the viewport width */
   const [zoom, setZoom] = useState(1);
+  /** the zoom the last fit() landed on, so the button knows whether it is at fit */
+  const [fitted, setFitted] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const didPhoneCollapse = useRef(false);
+  /** the person the page opened on, if any: a phone must not fold their card away */
+  const openedOn = useRef<string | null>(null);
   const setPendingTop = useRef(false);
+  /** where the view should go next. The counter lets the same person be asked
+      for twice in a row — tapping the selected card again brings it back. */
+  const [aim, setAim] = useState<{ id: string; n: number } | null>(null);
+  const aimAt = (id: string) => setAim((a) => ({ id, n: (a?.n ?? 0) + 1 }));
+  /** stable, so the register's gesture listeners are not rebound on every render */
+  const closeRegister = useCallback(() => {
+    setSelectedId(null);
+    setFocusId(null);
+  }, []);
 
   /* the mouse takes the sheet directly: drag to pan in both axes */
   useDragPan(scrollRef);
@@ -70,19 +90,129 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
   useEffect(() => {
     zoomRef.current = zoom;
   });
-  /** the wheel lands on fractions, so 1:1 is a neighbourhood rather than a value */
-  const atNaturalSize = Math.abs(zoom - 1) < 0.01;
+  /** zoom lands on fractions, so "at fit" is a neighbourhood rather than a value */
+  const atFit = fitted !== null && Math.abs(zoom - fitted) < 0.01;
+
+  /* Zooming about a point. Whatever asks for a new zoom — two fingers, the
+     wheel, the on-screen buttons — names the screen point that must stay put,
+     and the sheet point under it is remembered. Once React has committed the
+     new zoom, the layout effect below forces layout (so the browser's own
+     RTL re-pinning of a grown sheet has already happened), reads where that
+     sheet point landed, and scrolls by the difference. `scrollLeft +=` moves
+     the sheet the same way in both writing directions. */
+  const zoomAnchor = useRef<{ cx: number; cy: number; sx: number; sy: number } | null>(null);
+  function zoomAbout(next: number, cx: number, cy: number) {
+    const z = zoomRef.current;
+    next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    if (Math.abs(next - z) < 1e-6) return;
+    const sh = sheetRef.current;
+    if (sh) {
+      // measure against the zoom the sheet is actually drawn at: a pinch can
+      // ask again before React has painted the previous answer
+      const drawn = parseFloat(sh.style.zoom) || z;
+      const r = sh.getBoundingClientRect();
+      zoomAnchor.current = { cx, cy, sx: (cx - r.left) / drawn, sy: (cy - r.top) / drawn };
+    }
+    zoomRef.current = next;
+    setZoom(next);
+  }
+  /* The tail under the chart. A scroll container cannot scroll past its
+     content, and the chart is often shorter than the glass, so an anchored
+     zoom would drift the moment it asked for a scrollTop the content cannot
+     give. The tail grows by exactly what the anchor needs and shrinks back
+     when it no longer does; on a phone it is never less than the height of
+     the open sheet, so the last row can always rise above it. */
+  const tailRef = useRef<HTMLDivElement>(null);
+  const zoomSlack = useRef(0);
+  const sheetOpen = useRef(false);
+  const layTail = () => {
+    const tail = tailRef.current;
+    if (!tail) return;
+    const base = sheetOpen.current ? window.innerHeight * SHEET_HALF : 0;
+    tail.style.height = `${Math.max(base, zoomSlack.current)}px`;
+  };
+  useLayoutEffect(() => {
+    const a = zoomAnchor.current;
+    if (!a) return;
+    zoomAnchor.current = null;
+    const el = scrollRef.current;
+    const sh = sheetRef.current;
+    if (!el || !sh) return;
+    void el.scrollWidth; // settle layout at the new zoom before measuring
+    const r = sh.getBoundingClientRect();
+    const wantTop = el.scrollTop + (r.top + a.sy * zoom - a.cy);
+    zoomSlack.current = Math.max(0, wantTop + el.clientHeight - r.height);
+    layTail();
+    el.scrollLeft += r.left + a.sx * zoom - a.cx;
+    el.scrollTop = wantTop;
+  }, [zoom]);
+
+  /* two fingers take the sheet in and out about the point between them */
+  usePinchZoom(scrollRef, {
+    min: MIN_ZOOM,
+    max: MAX_ZOOM,
+    get: () => zoomRef.current,
+    set: (z, mid) => zoomAbout(z, mid.x, mid.y),
+  });
+  /** one notch of the on-screen buttons, about the middle of the glass: two wheel notches, so a tap is felt */
+  const zoomBy = (dir: 1 | -1) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const z = zoomRef.current;
+    zoomAbout(dir > 0 ? z * ZOOM_STEP * ZOOM_STEP : z / (ZOOM_STEP * ZOOM_STEP), r.left + r.width / 2, r.top + r.height / 2);
+  };
+
+  /* a phone folds the masthead's title away once the chart is being read,
+     giving the line back to the chart; the search and the tools stay */
+  const [scrolled, setScrolled] = useState(false);
+  const mastheadRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    const head = mastheadRef.current;
+    if (!el || !head || !compact) {
+      setScrolled(false);
+      return;
+    }
+    let on = false;
+    const update = () => {
+      // hysteresis: the title must not flicker at the threshold
+      const next = on ? el.scrollTop > 24 : el.scrollTop > 72;
+      if (next !== on) {
+        on = next;
+        setScrolled(next);
+      }
+    };
+    el.addEventListener("scroll", update, { passive: true });
+    // The title folding moves the chart's top edge up (and back down) by its
+    // own height. Scroll by the same amount, so the chart stays where it is on
+    // the glass — under two fingers or a thumb — and only the title moves.
+    let lastH = head.getBoundingClientRect().height;
+    const ro = new ResizeObserver(() => {
+      const h = head.getBoundingClientRect().height;
+      const dh = h - lastH;
+      lastH = h;
+      if (dh) el.scrollTop += dh;
+    });
+    ro.observe(head);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [compact]);
 
   const geo = useMemo(() => geometry(lang, step, compact), [lang, step, compact]);
   const hgeo = useMemo(() => houseGeometry(lang, step, compact), [lang, step, compact]);
 
-  /* a phone opens one level shallower: the founder and his four sons */
+  /* a phone opens one level shallower: the founder and his four sons — unless
+     the page already opened on somebody (a shared link, read either on the
+     server or in the browser), whose card the fold would hide again */
   useEffect(() => {
-    if (compact && !didPhoneCollapse.current && !initialPersonId) {
+    if (compact && !didPhoneCollapse.current && !openedOn.current) {
       didPhoneCollapse.current = true;
       setExpanded(fathersAbove(family.root, 1));
     }
-  }, [compact, initialPersonId]);
+  }, [compact]);
 
   /* the scroll view folds whoever is not expanded */
   const collapsed = useMemo(() => {
@@ -118,6 +248,13 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
   const width = view === "houses" ? houseW : scrollW;
   const height = view === "houses" ? houseH : scrollH;
 
+  /** the render's values as the effects below see them, refreshed before any
+      of them runs, so an effect can depend on its trigger alone */
+  const latest = useRef({ view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom });
+  useEffect(() => {
+    latest.current = { view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom };
+  });
+
   const shownId = previewId ?? selectedId;
   /* the lit chain is whatever part of the lineage is on the sheet: a previewed
      search hit inside a folded house still lights the house it belongs to */
@@ -147,15 +284,27 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     setSelectedId(id);
     setFocusId(id);
     setPreviewId(null);
+    aimAt(id);
   }
 
   function toggleCollapse(id: string) {
+    const folding = expanded.has(id);
     setExpanded((cur) => {
       const next = new Set(cur);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    // folding away the selected person's card hands the selection to the
+    // father whose branch just closed, so the register never shows someone
+    // who is no longer on the sheet
+    if (folding && selectedId && selectedId !== id && person(selectedId).ancestors.includes(id)) {
+      setSelectedId(id);
+      setFocusId(id);
+    }
+    // the father you touched stays where you can see him: opening a wide
+    // branch would otherwise push him off the edge as the sheet grows
+    aimAt(id);
   }
 
   /** fold every father at or below this depth (relative to the root) */
@@ -187,17 +336,18 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     setExpanded(fathersAbove(root, Infinity));
   }
 
-  function openBranch(id: string) {
+  /** make this person the root of the sheet, without selecting anyone */
+  function enterBranch(id: string) {
     setRootId(id);
-    setExpanded(() => {
-      const p = person(id);
-      const next = new Set<string>(p.ancestors);
-      next.add(id);
-      for (const c of p.children) if (person(c).children.length) next.add(c);
-      return next;
-    });
+    setExpanded(branchOpening(id));
+  }
+
+  function openBranch(id: string) {
+    enterBranch(id);
     setSelectedId(id);
+    setFocusId(id);
     setPendingTop.current = true;
+    aimAt(id);
   }
 
   /** shrink the sheet so the whole chart fits the viewport width */
@@ -211,8 +361,15 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     // A desktop never grows past 1:1: there the sheet is meant to read as paper
     // at its natural size.
     const ceiling = compact ? 2 : 1;
-    setZoom(Math.max(floor, Math.min(ceiling, avail / width)));
+    const z = Math.max(floor, Math.min(ceiling, avail / width));
+    zoomRef.current = z;
+    zoomSlack.current = 0; // a fit starts the sheet clean, with no room left over from a zoom
+    layTail();
+    setZoom(z);
+    setFitted(z);
   }
+  /** the Fit / 1:1 button: fit first; only once the chart fits does it offer natural size */
+  const fitOrNatural = () => (atFit ? setZoom(1) : fit());
 
   /* The wheel takes the sheet in and out about the pointer — the chart is a
      map, not a document, so the wheel zooms and the hand does the moving.
@@ -226,18 +383,33 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
       if (e.deltaY === 0) return;
       e.preventDefault();
       const from = zoomRef.current;
-      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, from * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)));
-      if (next === from) return;
-      // Where the view lands afterwards is left to the effect below, which
-      // already knows how to bring the selected person back into the middle in
-      // either writing direction. Anchoring the zoom on the pointer instead was
-      // tried and dropped: it needs the sheet's post-zoom geometry, and a fresh
-      // CSS `zoom` stays out of layout long enough that everything measured in
-      // between still reads at the old scale.
-      setZoom(next);
+      zoomAbout(from * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP), e.clientX, e.clientY);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  /* A double tap on a card also folds it, the way a double click does, but on a
+     phone two quick taps happen by accident far more often than on purpose:
+     the browser's dblclick is dropped when the last press was a finger. The
+     stop happens in the capture phase on the scroller, before it can reach the
+     card's handler. */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let touch = false;
+    const onDown = (e: PointerEvent) => {
+      touch = e.pointerType === "touch";
+    };
+    const onDbl = (e: MouseEvent) => {
+      if (touch) e.stopPropagation();
+    };
+    el.addEventListener("pointerdown", onDown, true);
+    el.addEventListener("dblclick", onDbl, true);
+    return () => {
+      el.removeEventListener("pointerdown", onDown, true);
+      el.removeEventListener("dblclick", onDbl, true);
+    };
   }, []);
 
   /* The first paint fits when it can: a chart you must scroll to even see is
@@ -269,29 +441,39 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
       // 0.6 leaves the founder card clipped off the edge — worse to read than
       // slightly smaller type.
       fit(compact ? 0.45 : 0.6);
+      // a page that opened on someone (a shared link) aimed at them before this
+      // fit resized the sheet: aim again at the size that will stay
+      const sel = latest.current.selectedId;
+      if (sel) aimAt(sel);
     }, 60);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, compact]);
 
-  /* A shared ?p= link opens on that person. The link is read here in the
-     browser rather than on the server, because reading it on the server would
-     make the page render on demand and this site is a plain static export.
-     Declared before the effect below so it reads the link before that one
-     rewrites the URL.
-
-     It has to select AFTER mounting, not during the first render: every page is
-     prerendered with nobody selected, so choosing someone while rendering would
-     disagree with the served HTML and break hydration. That is exactly the
-     one-off "read the browser, then tell React" case the rule below cannot
-     express, so it is turned off for this line alone. */
+  /* A shared link opens on its person, and inside its branch if it names one.
+     The link is read here in the browser rather than on the server: every page
+     is prerendered with nobody selected (the public site is a plain static
+     export), so choosing someone while rendering would disagree with the
+     served HTML and break hydration. That is exactly the one-off "read the
+     browser, then tell React" case the rule below cannot express, so it is
+     turned off for this one call. */
   const didOpenLink = useRef(false);
+  function openLink(branch: string | null, who: string) {
+    if (branch) enterBranch(branch);
+    select(who);
+  }
   useEffect(() => {
     if (didOpenLink.current) return;
     didOpenLink.current = true;
-    const p = new URLSearchParams(window.location.search).get("p");
+    const q = new URLSearchParams(window.location.search);
+    const b = q.get("b");
+    const p = q.get("p");
+    const branch = b && family.byId.has(b) && person(b).children.length > 0 ? b : null;
+    const who = p && family.byId.has(p) ? p : branch;
+    if (!who) return;
+    openedOn.current = who; // so the phone's opening fold leaves this card alone
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (p && family.byId.has(p)) select(p);
+    openLink(branch, who);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -305,9 +487,20 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     window.history.replaceState(null, "", url);
   }, [selectedId, rootId]);
 
-  /* bring the selected person into view */
+  /* Bring the aimed-at person into view. Only an explicit aim moves the view —
+     selecting, opening or folding a branch, tapping the selected card again —
+     never a zoom or a relayout on its own, so the fingers and the wheel keep
+     what they put under themselves. Everything else is read through `latest`,
+     refreshed before this runs, so the effect depends on the aim alone. */
+  /* the phone sheet opening or closing changes how much tail the chart needs;
+     laid before the aim below so the scroll it asks for is reachable */
   useEffect(() => {
-    if (!selectedId) return;
+    sheetOpen.current = compact && !!selectedId;
+    layTail();
+  }, [compact, selectedId]);
+  useEffect(() => {
+    if (!aim) return;
+    const { view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom } = latest.current;
     const el = scrollRef.current;
     if (setPendingTop.current) {
       setPendingTop.current = false;
@@ -316,28 +509,37 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     }
     if (!el) return;
 
+    const id = aim.id;
+    // the lineage to frame: from the person up to the root, as far as it is on the sheet
+    const onSheet = (pid: string) => (view === "houses" ? hlayout.positions.has(pid) : layout.byId.has(pid));
+    const inTree = id === rootId || person(id).ancestors.includes(rootId);
+    const chain = inTree ? pathToRoot(id, rootId).filter(onSheet) : [];
+
     // where is the person on the current sheet? (layout units, before zoom)
     let px: number, py: number, spanTop: number, spanBottom: number;
     if (view === "houses") {
-      const pos = hlayout.positions.get(selectedId);
+      const pos = hlayout.positions.get(id);
       if (!pos) return;
       px = hgeo.lead + pos.x;
       py = hgeo.margin + pos.y;
-      const ys = chain.map((id) => hlayout.positions.get(id)?.y).filter((v): v is number => v !== undefined);
+      const ys = chain.map((cid) => hlayout.positions.get(cid)?.y).filter((v): v is number => v !== undefined);
       spanTop = hgeo.margin + Math.min(...ys, pos.y);
       spanBottom = hgeo.margin + Math.max(...ys, pos.y) + hgeo.cardH;
     } else {
-      const n = layout.byId.get(selectedId);
+      const n = layout.byId.get(id);
       if (!n) return;
       px = n.x + geo.labelZone / 2;
       py = n.y;
-      const ys = chain.map((id) => layout.byId.get(id)?.y).filter((v): v is number => v !== undefined);
+      const ys = chain.map((cid) => layout.byId.get(cid)?.y).filter((v): v is number => v !== undefined);
       spanTop = Math.min(...ys, n.y);
       spanBottom = Math.max(...ys, n.y) + geo.rowPitch;
     }
-    // the phone sheet is a fixed overlay, so only the top of the scroller is
-    // actually visible — aim into that, not into the middle of the element
-    const visibleH = compact ? el.clientHeight * 0.48 : el.clientHeight;
+    // with the phone sheet open only what lies above it is visible — aim into
+    // that, not into the middle of the element
+    const visibleH =
+      compact && selectedId
+        ? Math.max(120, window.innerHeight * (1 - SHEET_HALF) - el.getBoundingClientRect().top)
+        : el.clientHeight;
     // frame the WHOLE lineage when it fits: seeing the chain from the founder
     // down to the person is the point, not seeing the person alone
     const fits = (spanBottom - spanTop) * zoom <= visibleH * 0.86;
@@ -356,7 +558,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
       // gliding across six screens is disorienting and slow: snap the long jumps
       behavior: reduced || far ? "auto" : "smooth",
     });
-  }, [selectedId, view, layout, hlayout, width, rtl, geo, hgeo, reduced, compact, chain, zoom]);
+  }, [aim]);
 
   /* keyboard: walk the tree the way the eye does */
   const onKey = (e: KeyboardEvent) => {
@@ -399,8 +601,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
     } else if (e.key === "-") {
       setStep((s) => Math.max(0, s - 1) as SizeStep);
     } else if (e.key === "f") {
-      if (atNaturalSize) fit();
-      else setZoom(1);
+      fitOrNatural();
     }
   };
 
@@ -440,9 +641,9 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
   }, [view, hlayout, layout]);
 
   return (
-    <main className="page grain" lang={lang} dir={rtl ? "rtl" : "ltr"}>
+    <main className={`page grain${scrolled ? " page--scrolled" : ""}${compact && selectedId ? " page--sheet" : ""}`} lang={lang} dir={rtl ? "rtl" : "ltr"}>
       {/* ————— masthead ————— */}
-      <header className="masthead">
+      <header className="masthead" ref={mastheadRef}>
         <div className="masthead__id">
           <h1 className="masthead__word font-display">{lang === "ar" ? "آل نصر الدين" : "Nasr Aldeen"}</h1>
           <p className="masthead__sub font-text">
@@ -482,14 +683,20 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
             <button onClick={() => setStep((s) => Math.min(2, s + 1) as SizeStep)} disabled={step === 2} aria-label={d.zoomIn}>
               +
             </button>
-            <button onClick={() => (atNaturalSize ? fit() : setZoom(1))} aria-pressed={!atNaturalSize} title={d.fit}>
-              {atNaturalSize ? d.fit : "1:1"}
+            <button className="stepper__fit" onClick={fitOrNatural} aria-pressed={atFit} title={d.fit}>
+              {atFit ? "1:1" : d.fit}
             </button>
           </div>
           <Link
             className="chip"
             /* switching language keeps the person you were reading */
-            href={`/${lang === "ar" ? "en" : "ar"}${selectedId ? `?p=${selectedId}` : ""}`}
+            href={`/${lang === "ar" ? "en" : "ar"}${(() => {
+              const q = new URLSearchParams();
+              if (selectedId) q.set("p", selectedId);
+              if (rootId !== FOUNDER_ID) q.set("b", rootId);
+              const s = q.toString();
+              return s ? `?${s}` : "";
+            })()}`}
             prefetch={false}
           >
             {d.switchLang}
@@ -532,6 +739,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
         <div className="scrollwrap">
           <div className="scroller" ref={scrollRef} dir={rtl ? "rtl" : "ltr"}>
             <div
+              ref={sheetRef}
               className="sheet"
               /* --print-zoom shrinks the sheet to the printable width of an A3
                  sheet in landscape, so the chart prints whole rather than
@@ -617,7 +825,25 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
                   : `The Nasr Aldeen family tree · ${family.people.length} names across ${family.generations} generations`}
               </p>
             </div>
+            {/* the room under the chart: for the phone sheet, and for whatever an anchored zoom needs */}
+            <div className="scroller__tail" ref={tailRef} aria-hidden />
           </div>
+
+          {/* a phone has no wheel: the sheet is taken in and out by two fingers
+              or by these, sat in the far top corner where neither chart draws */}
+          {compact && (
+            <div className="fabs" role="group" aria-label={lang === "ar" ? "تقريب الورقة" : "sheet zoom"}>
+              <button onClick={() => zoomBy(1)} disabled={zoom >= MAX_ZOOM} aria-label={d.zoomSheetIn}>
+                +
+              </button>
+              <button onClick={() => zoomBy(-1)} disabled={zoom <= MIN_ZOOM} aria-label={d.zoomSheetOut}>
+                −
+              </button>
+              <button className="fabs__fit" onClick={fitOrNatural} aria-pressed={atFit}>
+                {atFit ? "1:1" : d.fit}
+              </button>
+            </div>
+          )}
 
           {!compact && view === "scroll" && (
             <Minimap layout={layout} geo={geo} lang={lang} scrollRef={scrollRef} contentHeight={height + geo.headerH} chain={chain} />
@@ -646,10 +872,7 @@ export function FamilyTree({ lang, initialPersonId }: { lang: Lang; initialPerso
             compact={compact}
             onSelect={select}
             onOpenBranch={openBranch}
-            onClose={() => {
-              setSelectedId(null);
-              setFocusId(null);
-            }}
+            onClose={closeRegister}
             isBranchRoot={selectedId === rootId}
           />
         )}

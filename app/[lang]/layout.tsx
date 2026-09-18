@@ -51,6 +51,12 @@ export const viewport: Viewport = {
   themeColor: "#F3EDE1",
   width: "device-width",
   initialScale: 1,
+  // the page draws under the notch and the home indicator; every fixed strip
+  // pads itself with env(safe-area-inset-*) instead
+  viewportFit: "cover",
+  // the soft keyboard shrinks the page rather than covering it, so the search
+  // results stay above the keys
+  interactiveWidget: "resizes-content",
 };
 
 export default async function LangLayout({ children, params }: { children: React.ReactNode; params: Promise<{ lang: string }> }) {

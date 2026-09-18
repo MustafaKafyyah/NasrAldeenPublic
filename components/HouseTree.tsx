@@ -184,6 +184,10 @@ function Card({
           role="button"
           aria-label={n.folded ? (lang === "ar" ? "افتح" : "open") : lang === "ar" ? "اطوِ" : "fold"}
         >
+          {/* a phone gets a finger-sized invisible target round the chip, kept
+              below the card's bottom edge so it never steals a tap meant for
+              the card; the drawn chip itself keeps its size in both places */}
+          {geo.compact && <rect x={-30} y={-(geo.chipH / 2 + 2)} width={60} height={geo.chipH / 2 + 2 + 24} fill="transparent" />}
           <rect className="chip-issue__bg" x={-22} y={-geo.chipH / 2} width={44} height={geo.chipH} rx={geo.chipH / 2} />
           <text className="chip-issue__text" y={0.5} textAnchor="middle" dominantBaseline="central" fontSize={11}>
             {n.folded ? `+${num(p.descendantCount, lang)}` : num(p.descendantCount, lang)}

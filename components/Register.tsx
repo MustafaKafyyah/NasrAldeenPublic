@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   descendantsByDepth,
   nameOf,
@@ -12,6 +12,21 @@ import {
 import { num, t } from "@/lib/i18n";
 import { houseFor } from "@/lib/houses";
 import { HouseMark } from "./HouseTree";
+
+/* ————— the phone sheet ————— */
+
+/** where the sheet rests: half the glass, or all of it but a strip of the chart */
+type Snap = "half" | "full";
+/** must agree with `.register--sheet` / `.register--full` in chrome.css */
+export const SHEET_HALF = 0.5;
+const SHEET_FULL_GAP = 48;
+/** px/ms above which a release counts as a fling, whatever the position */
+const FLING = 0.45;
+
+function sheetHeights() {
+  const vh = window.innerHeight;
+  return { half: vh * SHEET_HALF, full: vh - SHEET_FULL_GAP };
+}
 
 /** السجل — the register entry for one person. */
 export function Register({
@@ -35,6 +50,128 @@ export function Register({
   const p = person(id);
   const [copied, setCopied] = useState<null | "nasab" | "link">(null);
   const byDepth = useMemo(() => descendantsByDepth(id), [id]);
+
+  /* On a phone the register is a bottom sheet: it opens on half the glass so
+     the lit lineage stays in view above it, the handle pulls it up to read a
+     long list, and a pull down past the half mark dismisses it. The state
+     lives here rather than in FamilyTree so it survives moving from person to
+     person, and picking a name inside the sheet drops it back to half: the
+     point of picking is to see that person on the chart. */
+  const [snap, setSnap] = useState<Snap>("half");
+  /** live height while a finger holds the sheet, else null */
+  const [dragH, setDragH] = useState<number | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; h0: number; y: number; t: number; v: number } | null>(null);
+
+  const pick = (pid: string) => {
+    if (compact) setSnap("half");
+    onSelect(pid);
+  };
+
+  function dragStart(y: number) {
+    const el = asideRef.current;
+    if (!el) return;
+    drag.current = { y0: y, h0: el.getBoundingClientRect().height, y, t: performance.now(), v: 0 };
+  }
+  function dragMove(y: number) {
+    const g = drag.current;
+    if (!g) return;
+    const now = performance.now();
+    const dt = now - g.t;
+    // a smoothed velocity, so one jittery sample cannot decide the release
+    if (dt > 0) g.v = g.v * 0.6 + ((y - g.y) / dt) * 0.4;
+    g.y = y;
+    g.t = now;
+    const { full } = sheetHeights();
+    setDragH(Math.max(0, Math.min(full, g.h0 - (y - g.y0))));
+  }
+  function dragEnd() {
+    const g = drag.current;
+    drag.current = null;
+    setDragH(null);
+    if (!g) return;
+    const { half, full } = sheetHeights();
+    const h = Math.max(0, Math.min(full, g.h0 - (g.y - g.y0)));
+    // a flick goes one stop in its direction; a slow release settles nearest
+    if (g.v > FLING) {
+      if (snap === "full" && h > half * 0.6) setSnap("half");
+      else onClose();
+      return;
+    }
+    if (g.v < -FLING) {
+      setSnap("full");
+      return;
+    }
+    if (h < half * 0.5) onClose();
+    else setSnap(Math.abs(h - half) <= Math.abs(h - full) ? "half" : "full");
+  }
+
+  /* the handle: pointer events, since it takes mouse and finger alike */
+  const onHandleDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStart(e.clientY);
+  };
+  const onHandleMove = (e: React.PointerEvent) => {
+    if (drag.current) dragMove(e.clientY);
+  };
+  const onHandleUp = (e: React.PointerEvent) => {
+    const g = drag.current;
+    if (!g) return;
+    // a tap on the handle, with no travel, toggles the two resting heights
+    if (Math.abs(e.clientY - g.y0) < 4) {
+      drag.current = null;
+      setDragH(null);
+      setSnap((s) => (s === "half" ? "full" : "half"));
+      return;
+    }
+    dragEnd();
+  };
+
+  /* the content: a pull down from its very top takes the sheet with it. Touch
+     events, bound non-passive, because the browser must be told before its
+     own scroll starts that this move is ours. */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!compact || !el) return;
+    let y0 = 0;
+    let atTop = false;
+    let taken = false;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      y0 = e.touches[0].clientY;
+      atTop = el.scrollTop <= 0;
+      taken = false;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const y = e.touches[0].clientY;
+      if (!taken) {
+        if (!atTop || y - y0 <= 6) return;
+        taken = true;
+        dragStart(y0);
+      }
+      if (e.cancelable) e.preventDefault();
+      dragMove(y);
+    };
+    const onEnd = () => {
+      if (taken) dragEnd();
+      taken = false;
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+    // dragStart/dragMove/dragEnd read live refs and state setters only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, snap, onClose]);
   const house = houseFor(p.id);
   const rel = lang === "ar" ? (p.isFemale ? "بنت" : "ابن") : p.isFemale ? "daughter of" : "son of";
   /* only what is recorded, in a fixed order; nothing is invented */
@@ -67,10 +204,25 @@ export function Register({
 
   return (
     <aside
-      className={`register${compact ? " register--sheet" : ""}`}
+      ref={asideRef}
+      className={`register${compact ? ` register--sheet register--${snap}` : ""}${dragH !== null ? " register--dragging" : ""}`}
+      style={dragH !== null ? { height: dragH } : undefined}
       aria-label={lang === "ar" ? "سجل الشخص" : "person register"}
     >
-      <div className="register__scroll">
+      {compact && (
+        <button
+          className="register__handle"
+          aria-label={d.sheetHandle}
+          aria-expanded={snap === "full"}
+          onPointerDown={onHandleDown}
+          onPointerMove={onHandleMove}
+          onPointerUp={onHandleUp}
+          onPointerCancel={dragEnd}
+        >
+          <span className="register__grip" aria-hidden />
+        </button>
+      )}
+      <div className="register__scroll" ref={scrollRef}>
         <button className="register__close" onClick={onClose} aria-label={d.close}>
           ×
         </button>
@@ -87,7 +239,7 @@ export function Register({
               {p.ancestors.map((aid, i) => (
                 <span key={aid}>
                   {i > 0 && <span className="register__rel">{lang === "ar" ? " بن " : " bin "}</span>}
-                  <button className="register__link" onClick={() => onSelect(aid)}>
+                  <button className="register__link" onClick={() => pick(aid)}>
                     {nameOf(person(aid), lang)}
                   </button>
                 </span>
@@ -137,7 +289,7 @@ export function Register({
           ) : (
             <ul className="register__list">
               {p.children.map((cid) => (
-                <PersonRow key={cid} p={person(cid)} lang={lang} onSelect={onSelect} />
+                <PersonRow key={cid} p={person(cid)} lang={lang} onSelect={pick} />
               ))}
             </ul>
           )}
@@ -150,7 +302,7 @@ export function Register({
             <>
               <ul className="register__list">
                 {p.siblings.map((sid) => (
-                  <PersonRow key={sid} p={person(sid)} lang={lang} onSelect={onSelect} />
+                  <PersonRow key={sid} p={person(sid)} lang={lang} onSelect={pick} />
                 ))}
               </ul>
               <p className="register__note">{lang === "ar" ? "بترتيب السجل" : "in record order"}</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 /**
  * SSR-safe media query: false on the server AND on the first client render,
@@ -117,6 +117,82 @@ export function useDragPan(ref: RefObject<HTMLElement | null>) {
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
       el.removeEventListener("click", onClick, true);
+    };
+  }, [ref]);
+}
+
+/**
+ * Two fingers on the sheet take it in and out. Touch events rather than
+ * pointer events: only they carry both fingers at once, so the scale is the
+ * plain ratio of the distance between them now and when they landed. The
+ * scroller keeps `touch-action: pan-x pan-y`, so one finger still pans
+ * natively and the browser never zooms the page itself; the move handler is
+ * non-passive so it can cancel the two-finger pan the browser would otherwise
+ * run underneath.
+ *
+ * Every zoom is reported with the point midway between the fingers, so the
+ * caller can keep that point still (FamilyTree's zoomAbout).
+ */
+export function usePinchZoom(
+  ref: RefObject<HTMLElement | null>,
+  opts: { min: number; max: number; get: () => number; set: (z: number, mid: { x: number; y: number }) => void },
+) {
+  const optsRef = useRef(opts);
+  useEffect(() => {
+    optsRef.current = opts;
+  });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const dist = (t: TouchList) => Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+    const midOf = (t: TouchList) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+    let active = false;
+    let d0 = 1;
+    let z0 = 1;
+    let raf = 0;
+    let pending = 1;
+    let mid = { x: 0, y: 0 };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      active = true;
+      d0 = dist(e.touches) || 1;
+      z0 = optsRef.current.get();
+      mid = midOf(e.touches);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!active || e.touches.length < 2) return;
+      if (e.cancelable) e.preventDefault();
+      const { min, max } = optsRef.current;
+      pending = Math.min(max, Math.max(min, (z0 * dist(e.touches)) / d0));
+      mid = midOf(e.touches);
+      // one layout per frame, however fast the fingers report
+      if (!raf) {
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          optsRef.current.set(pending, mid);
+        });
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!active || e.touches.length >= 2) return;
+      active = false;
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        optsRef.current.set(pending, mid);
+      }
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [ref]);
 }

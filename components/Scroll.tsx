@@ -219,7 +219,7 @@ function Node({
       {hasIssue && (
         <circle
           className="node__toggle"
-          r={geo.compact ? 15 : 12}
+          r={geo.compact ? 22 : 12}
           fill="transparent"
           onClick={(e) => {
             e.stopPropagation();
