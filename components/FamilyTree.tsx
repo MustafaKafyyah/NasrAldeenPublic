@@ -20,6 +20,8 @@ import { num, t } from "@/lib/i18n";
 
 const EMPTY = new Set<string>();
 type View = "houses" | "scroll";
+/** localStorage key: the welcome card has been closed in this browser */
+const WELCOME_SEEN = "nasraldeen-welcome-seen";
 
 /** how far the sheet may be taken in and out by the wheel */
 const MIN_ZOOM = 0.25;
@@ -78,15 +80,44 @@ export function FamilyTree({ lang }: { lang: Lang }) {
       for twice in a row — tapping the selected card again brings it back. */
   const [aim, setAim] = useState<{ id: string; n: number } | null>(null);
   const aimAt = (id: string) => setAim((a) => ({ id, n: (a?.n ?? 0) + 1 }));
-  /** stable, so the register's gesture listeners are not rebound on every render */
+  /** stable, so the register's gesture listeners are not rebound on every render.
+      On a phone the sheet has a history entry of its own (see the overlay effect
+      below), so closing it is a step back and the popstate handler does the rest. */
   const closeRegister = useCallback(() => {
+    if (window.history.state?.overlay === "register") {
+      window.history.back();
+      return;
+    }
     setSelectedId(null);
     setFocusId(null);
   }, []);
 
-  /* The welcome card: up on every load, and back on demand from the masthead */
-  const [welcome, setWelcome] = useState(true);
-  const closeWelcome = useCallback(() => setWelcome(false), []);
+  /* The welcome card: up on the first visit in this browser, remembered once
+     closed, and back on demand from the masthead. Read after mount — the page
+     is prerendered without it, and the browser is the only place that knows. */
+  const [welcome, setWelcome] = useState(false);
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = window.localStorage.getItem(WELCOME_SEEN) === "1";
+    } catch {
+      /* storage blocked: the card simply shows */
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!seen) setWelcome(true);
+  }, []);
+  const closeWelcome = useCallback(() => {
+    try {
+      window.localStorage.setItem(WELCOME_SEEN, "1");
+    } catch {
+      /* nothing to remember it in; it will show again next time */
+    }
+    if (window.history.state?.overlay === "welcome") {
+      window.history.back();
+      return;
+    }
+    setWelcome(false);
+  }, []);
 
   /* the mouse takes the sheet directly: drag to pan in both axes */
   useDragPan(scrollRef);
@@ -255,10 +286,35 @@ export function FamilyTree({ lang }: { lang: Lang }) {
 
   /** the render's values as the effects below see them, refreshed before any
       of them runs, so an effect can depend on its trigger alone */
-  const latest = useRef({ view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom });
+  const latest = useRef({ view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom, welcome });
   useEffect(() => {
-    latest.current = { view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom };
+    latest.current = { view, layout, hlayout, geo, hgeo, width, rtl, reduced, compact, rootId, selectedId, zoom, welcome };
   });
+
+  /* Back closes what is on top — the welcome card, or the phone's sheet —
+     instead of leaving the site. Each of them pushes one history entry when it
+     opens; the Back button (or the browser's) pops it and the handler below
+     closes the overlay. Closing by any other means steps back too, so the
+     stack and the screen never disagree. */
+  const overlay = welcome ? "welcome" : compact && selectedId ? "register" : null;
+  useEffect(() => {
+    if (!overlay) return;
+    const h = window.history;
+    if (h.state?.overlay === overlay) return;
+    h.pushState({ ...(h.state ?? {}), overlay }, "", window.location.href);
+  }, [overlay]);
+  useEffect(() => {
+    const onPop = () => {
+      const { welcome, compact, selectedId } = latest.current;
+      if (welcome) setWelcome(false);
+      else if (compact && selectedId) {
+        setSelectedId(null);
+        setFocusId(null);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const shownId = previewId ?? selectedId;
   /* the lit chain is whatever part of the lineage is on the sheet: a previewed
@@ -508,7 +564,8 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     else url.searchParams.delete("p");
     if (rootId !== FOUNDER_ID) url.searchParams.set("b", rootId);
     else url.searchParams.delete("b");
-    window.history.replaceState(null, "", url);
+    // keep whatever state the entry carries (the overlay marker below)
+    window.history.replaceState(window.history.state, "", url);
   }, [selectedId, rootId]);
 
   /* Bring the aimed-at person into view. Only an explicit aim moves the view —
@@ -596,8 +653,7 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     const prev = view === "houses" ? (rtl ? "ArrowRight" : "ArrowLeft") : "ArrowUp";
     const next = view === "houses" ? (rtl ? "ArrowLeft" : "ArrowRight") : "ArrowDown";
     if (e.key === "Escape") {
-      setSelectedId(null);
-      setFocusId(null);
+      closeRegister();
     } else if (e.key === up && p.fatherId && cur !== rootId) {
       e.preventDefault();
       select(p.fatherId);

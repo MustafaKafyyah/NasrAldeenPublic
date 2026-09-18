@@ -8,7 +8,7 @@ import "../globals.css";
 const kufi = Reem_Kufi({
   variable: "--font-kufi",
   subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600", "700"], // 500 is never set; every file is on the first screen
   display: "swap",
 });
 
@@ -17,8 +17,9 @@ const amiri = Amiri({
   variable: "--font-amiri",
   subsets: ["arabic", "latin"],
   weight: ["400", "700"],
-  style: ["normal", "italic"],
-  display: "block",
+  // swap, not block: on a slow connection the names must not stay invisible
+  // while the face downloads — the fallback serif shows and is replaced
+  display: "swap",
 });
 
 /* Latin — English names, metadata and the Latin wordmark */
@@ -26,8 +27,7 @@ const garamond = EB_Garamond({
   variable: "--font-garamond",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  display: "block",
+  display: "swap",
 });
 
 export function generateStaticParams() {
