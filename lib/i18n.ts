@@ -54,9 +54,9 @@ const dict = {
     plate: "لوحة",
     intro:
       "مشجّرة نسب آل نصر الدين، من الجدّ المؤسّس إلى الجيل السابع. المس أي اسم لترى نسبه وإخوته وأبناءه.",
-    hintDesktop: "انقر على اسم ليضيء نسبه · انقر مرتين أو على الرقم لفتح الفرع أو طيّه · اسحب لتحريك الورقة · العجلة للتقريب والتبعيد · ٧ … ١ لطيّ الأجيال · / للبحث · f للملاءمة",
+    hintDesktop: "انقر على اسم ليضيء نسبه ويفتح فرعه، وانقر عليه ثانيةً ليُطوى · الرقم يفتح الفرع أو يطويه · اسحب لتحريك الورقة · العجلة للتقريب والتبعيد · ٧ … ١ لطيّ الأجيال · / للبحث · f للملاءمة",
     hintDesktopList: "انقر على اسم ليضيء نسبه · انقر مرتين أو على العلامة لفتح الفرع أو طيّه · اسحب لتحريك الورقة · العجلة للتقريب والتبعيد · ٧ … ١ لطيّ الأجيال · / للبحث · f للملاءمة",
-    hintMobile: "المس اسماً ليضيء نسبه · المس الرقم لفتح الفرع · قرّب بإصبعين",
+    hintMobile: "المس اسماً ليضيء نسبه ويفتح فرعه، والمسه ثانيةً ليُطوى · قرّب بإصبعين",
     hintMobileList: "المس اسماً ليضيء نسبه ويفتح فرعه · قرّب بإصبعين",
     sheetHandle: "اسحب لتوسيع السجل أو طيّه",
     zoomSheetIn: "تقريب الورقة",
@@ -65,7 +65,7 @@ const dict = {
     welcomeTitle: "أهلاً بكم في مشجرة آل نصر الدين",
     welcomeHow: "كيف تتنقّل",
     welcomeSteps: [
-      "المس أي اسم ليضيء نسبه ويظهر سجلّه: أبناؤه وإخوته وذرّيته.",
+      "المس أي اسم ليضيء نسبه ويظهر سجلّه ويفتح فرعه؛ المسه ثانيةً ليُطوى الفرع.",
       "المس الرقم تحت الاسم لفتح فرعه أو طيّه.",
       "شريط البيوت في الأعلى يفتح بيت أحد الأبناء الأربعة كاملاً، والبحث يجد أي اسم بالعربية أو الإنجليزية.",
       "«شجرة» تعرض العائلة بطاقات، و«قائمة» تعرضها سجلاً مطويّاً على الطريقة القديمة.",
@@ -151,9 +151,9 @@ const dict = {
     plate: "Plate",
     intro:
       "The lineage of the Nasr Aldeen family, from the founding ancestor to the seventh generation. Tap any name to see their lineage, siblings and children.",
-    hintDesktop: "Click a name to light its lineage · double-click or click the number to open or fold a branch · drag to pan · wheel to zoom · 1–7 folds generations · / to search · f to fit",
+    hintDesktop: "Click a name to light its lineage and open its branch, click it again to fold · the number opens or folds a branch · drag to pan · wheel to zoom · 1–7 folds generations · / to search · f to fit",
     hintDesktopList: "Click a name to light its lineage · double-click or click the mark to open or fold a branch · drag to pan · wheel to zoom · 1–7 folds generations · / to search · f to fit",
-    hintMobile: "Tap a name to light its lineage · tap the number to open a branch · pinch to zoom",
+    hintMobile: "Tap a name to light its lineage and open its branch, tap it again to fold · pinch to zoom",
     hintMobileList: "Tap a name to light its lineage and open its branch · pinch to zoom",
     sheetHandle: "Drag to expand or collapse the register",
     zoomSheetIn: "Zoom the sheet in",
@@ -162,7 +162,7 @@ const dict = {
     welcomeTitle: "Welcome to the Nasr Aldeen family tree",
     welcomeHow: "How to get around",
     welcomeSteps: [
-      "Tap any name to light its lineage and open its record: children, siblings and descendants.",
+      "Tap any name to light its lineage, open its record and its branch; tap it again to fold the branch.",
       "Tap the number under a name to open or fold that branch.",
       "The bar at the top opens the whole house of one of the four sons, and the search finds any name in Arabic or English.",
       "“Tree” shows the family as cards; “List” shows it as a folded register in the old style.",

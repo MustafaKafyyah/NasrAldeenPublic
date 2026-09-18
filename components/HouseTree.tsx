@@ -140,9 +140,10 @@ function Card({
       aria-expanded={hasIssue ? !n.folded : undefined}
       aria-label={ariaLabel(p, lang)}
       /* the whole card is the target — the name text sits above the paper, so
-         a handler on the paper alone misses a click on the letters */
+         a handler on the paper alone misses a click on the letters. One click
+         opens the record and the next generation, and a second click folds it,
+         so there is nothing left for a double click to do. */
       onClick={() => onSelect(p.id)}
-      onDoubleClick={() => hasIssue && onToggle(p.id)}
     >
       <rect className="card__paper" x={snap(x)} y={snap(y)} width={n.w} height={n.h} rx={7} />
       {/* the house bar along the top edge */}

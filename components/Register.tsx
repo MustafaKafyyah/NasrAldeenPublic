@@ -15,10 +15,10 @@ import { HouseMark } from "./HouseTree";
 
 /* ————— the phone sheet ————— */
 
-/** where the sheet rests: a third of the glass, or all of it but a strip of the chart */
+/** where the sheet rests: a quarter of the glass, or all of it but a strip of the chart */
 type Snap = "rest" | "full";
 /** must agree with `.register--sheet` / `.register--full` in chrome.css */
-export const SHEET_REST = 1 / 3;
+export const SHEET_REST = 1 / 4;
 const SHEET_FULL_GAP = 48;
 /** px/ms above which a release counts as a fling, whatever the position */
 const FLING = 0.45;
@@ -51,11 +51,11 @@ export function Register({
   const [copied, setCopied] = useState<null | "nasab" | "link">(null);
   const byDepth = useMemo(() => descendantsByDepth(id), [id]);
 
-  /* On a phone the register is a bottom sheet: it opens on a third of the glass so
+  /* On a phone the register is a bottom sheet: it opens on a quarter of the glass so
      the lit lineage stays in view above it, the handle pulls it up to read a
      long list, and a pull down past half of that dismisses it. The state
      lives here rather than in FamilyTree so it survives moving from person to
-     person, and picking a name inside the sheet drops it back to a third: the
+     person, and picking a name inside the sheet drops it back to a quarter: the
      point of picking is to see that person on the chart. */
   const [snap, setSnap] = useState<Snap>("rest");
   /** live height while a finger holds the sheet, else null */

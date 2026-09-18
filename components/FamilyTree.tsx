@@ -292,8 +292,9 @@ export function FamilyTree({ lang }: { lang: Lang }) {
     aimAt(id);
   }
 
-  /** the phone's list view: a tap on a name opens its record AND its next
-      column; a tap on the name already open closes that column again */
+  /** a tap on a name opens its record AND its next generation; a tap on the
+      name already open closes that generation again. Every card, in every
+      layout; in the list only on a phone, where the bead is too small a target. */
   function selectAndOpen(id: string) {
     const hasIssue = person(id).children.length > 0;
     if (hasIssue && selectedId === id && expanded.has(id)) {
@@ -838,7 +839,7 @@ export function FamilyTree({ lang }: { lang: Lang }) {
                     chain={chain}
                     selectedId={shownId}
                     focusId={focusId}
-                    onSelect={select}
+                    onSelect={selectAndOpen}
                     onToggleCollapse={toggleCollapse}
                     width={width}
                     height={height}
