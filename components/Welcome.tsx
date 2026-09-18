@@ -17,9 +17,14 @@ export function Welcome({ lang, onClose }: { lang: Lang; onClose: () => void }) 
   const d = t(lang);
   const startRef = useRef<HTMLButtonElement>(null);
 
-  /* the card owns the keyboard while it is up: Escape closes, focus starts on the button */
+  const cardRef = useRef<HTMLElement>(null);
+
+  /* the card owns the keyboard while it is up: Escape closes, focus starts on
+     the button — without scrolling to it, or a phone would open the card with
+     its title already pushed out of sight above the fold */
   useEffect(() => {
-    startRef.current?.focus();
+    startRef.current?.focus({ preventScroll: true });
+    if (cardRef.current) cardRef.current.scrollTop = 0;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -30,6 +35,7 @@ export function Welcome({ lang, onClose }: { lang: Lang; onClose: () => void }) 
   return (
     <div className="welcome" role="presentation" onClick={onClose}>
       <section
+        ref={cardRef}
         className="welcome__card"
         role="dialog"
         aria-modal="true"
