@@ -9,6 +9,7 @@ import { SearchField } from "./SearchField";
 import { Minimap } from "./Minimap";
 import { BranchBar } from "./BranchBar";
 import { GenGutter } from "./GenGutter";
+import { Welcome } from "./Welcome";
 import { useDragPan, useMediaQuery, usePinchZoom, useReducedMotion } from "./hooks";
 import { SHEET_HALF } from "./Register";
 import { scrollLayout, pathToRoot, FOUNDER_ID } from "@/lib/layout";
@@ -19,6 +20,8 @@ import { num, t } from "@/lib/i18n";
 
 const EMPTY = new Set<string>();
 type View = "houses" | "scroll";
+/** localStorage key: the welcome card has been closed in this browser */
+const WELCOME_SEEN = "nasraldeen-welcome-seen";
 
 /** how far the sheet may be taken in and out by the wheel */
 const MIN_ZOOM = 0.25;
@@ -81,6 +84,29 @@ export function FamilyTree({ lang }: { lang: Lang }) {
   const closeRegister = useCallback(() => {
     setSelectedId(null);
     setFocusId(null);
+  }, []);
+
+  /* The welcome card: up on the first visit, remembered in this browser once
+     closed, and back on demand from the masthead. Read after mount — the page
+     is prerendered without it, and the browser is the only place that knows. */
+  const [welcome, setWelcome] = useState(false);
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = window.localStorage.getItem(WELCOME_SEEN) === "1";
+    } catch {
+      /* storage blocked: the card simply shows */
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!seen) setWelcome(true);
+  }, []);
+  const closeWelcome = useCallback(() => {
+    setWelcome(false);
+    try {
+      window.localStorage.setItem(WELCOME_SEEN, "1");
+    } catch {
+      /* nothing to remember it in; it will show again next time */
+    }
   }, []);
 
   /* the mouse takes the sheet directly: drag to pan in both axes */
@@ -564,6 +590,7 @@ export function FamilyTree({ lang }: { lang: Lang }) {
   const onKey = (e: KeyboardEvent) => {
     const tag = (document.activeElement as HTMLElement | null)?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (welcome) return; // the welcome card owns the keyboard
     const cur = focusId ?? selectedId ?? rootId;
     const p = person(cur);
     const up = view === "houses" ? "ArrowUp" : rtl ? "ArrowRight" : "ArrowLeft"; // toward the root
@@ -687,8 +714,11 @@ export function FamilyTree({ lang }: { lang: Lang }) {
               {atFit ? "1:1" : d.fit}
             </button>
           </div>
+          <button className="chip chip--about" onClick={() => setWelcome(true)}>
+            {d.about}
+          </button>
           <Link
-            className="chip"
+            className="chip chip--lang"
             /* switching language keeps the person you were reading */
             href={`/${lang === "ar" ? "en" : "ar"}${(() => {
               const q = new URLSearchParams();
@@ -877,6 +907,8 @@ export function FamilyTree({ lang }: { lang: Lang }) {
           />
         )}
       </div>
+
+      {welcome && <Welcome lang={lang} onClose={closeWelcome} />}
 
       {/* the lit nasab, always readable even when the register is dismissed */}
       {shownId && !selectedId && (
