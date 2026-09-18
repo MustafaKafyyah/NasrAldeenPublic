@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Nasr Aldeen family tree">
+  <!--
+    A tree with two people standing at its foot.
+
+    Drawn back to front: trunk, then canopy over it, then the two figures. Each
+    figure is a head plus a dome of shoulders, built from a circle and a rect
+    rather than a curve so that scripts/make-icons.mjs can rasterise exactly the
+    same shape for the .ico and the PNG.
+
+    The trunk sits on an even grid (x 14-18, y 12-20). A favicon is drawn at
+    16px, half this 32-unit space, so an odd edge would land mid-pixel and smear
+    to grey instead of holding a clean edge.
+  -->
+  <rect width="32" height="32" rx="7" fill="#F2E8D5" />
+
+  <!-- trunk, under the canopy -->
+  <rect x="14" y="12" width="4" height="8" fill="#6B4A2A" />
+
+  <!-- leafy canopy -->
+  <g fill="#5A8A3C">
+    <circle cx="16" cy="8" r="6" />
+    <circle cx="10.5" cy="11" r="4.4" />
+    <circle cx="21.5" cy="11" r="4.4" />
+  </g>
+
+  <!--
+    Two figures at the foot of the tree. The head is deliberately narrow against
+    the shoulders (2.4 against 3.6): with the two nearer in size the silhouette
+    loses its waist and reads as a peg rather than a person once it is small.
+  -->
+  <g fill="#5C3320">
+    <circle cx="9.6" cy="21.4" r="2.4" />
+    <circle cx="9.6" cy="26" r="3.6" />
+    <rect x="6" y="26" width="7.2" height="3.5" />
+    <circle cx="22.4" cy="21.4" r="2.4" />
+    <circle cx="22.4" cy="26" r="3.6" />
+    <rect x="18.8" y="26" width="7.2" height="3.5" />
+  </g>
+</svg>
